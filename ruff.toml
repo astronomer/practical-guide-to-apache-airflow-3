@@ -1,0 +1,5 @@
+line-length = 56
+
+[lint]
+select = ["AIR30"]
+preview = true

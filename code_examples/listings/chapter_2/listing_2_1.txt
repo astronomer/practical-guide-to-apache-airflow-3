@@ -1,0 +1,34 @@
+.
+├── .astro    #A
+├── dags  #B
+│   └── exampledag.py    #C
+├── include    #D
+├── plugins    #E
+├── tests    #F
+│   └── dags
+│   	└── test_dag_example.py    #G
+├── .dockerignore    #H
+├── .env    #I
+├── .gitignore    #J
+├── Dockerfile    #K
+├── README.md    #L
+├── airflow_settings.yaml    #M
+├── packages.txt    #N
+└── requirements.txt    #O
+
+
+#A Advanced configs, we recommend not modifying this folder
+#B Default location for files defining dags
+#C Simple example dag that works out of the box
+#D Automatically mounted folder for supporting code
+#E Plugins are custom extensions of the Airflow UI
+#F Tests using any Python testing framework, can be run with astro dev pytest 
+#G Example dag validation tests
+#H Files not packaged into the Astro CLI docker containers
+#I Local environment variables, good place to store secrets for local testing
+#J https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+#K Image used to build the containers
+#L Documents how to use the Astro CLI
+#M Offers a way to define local Airflow connections using yaml 
+#N Packages to install at the OS level
+#O Packages to be installed into the Python environment to use in dag code
