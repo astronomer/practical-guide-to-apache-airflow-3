@@ -1,7 +1,7 @@
 import os
 
 from airflow.decorators import task
-from airflow.sdk import Asset, dag
+from airflow.sdk import dag
 from pendulum import datetime, duration
 
 _WEATHER_URL = (
