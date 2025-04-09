@@ -2,7 +2,7 @@ from airflow.sdk import asset
 
 
 @asset(schedule="@daily")  # B
-def raw_zen_quotes() -> list[dict]:  # C
+def raw_zen_quotes() -> list[dict]:  
     """
     Extracts a random set of quotes.
     """
