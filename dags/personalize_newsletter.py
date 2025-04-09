@@ -1,7 +1,7 @@
 import os
 
 from airflow.decorators import task
-from airflow.sdk import dag
+from airflow.sdk import dag, Asset
 from pendulum import datetime, duration
 
 _WEATHER_URL = (
@@ -56,7 +56,7 @@ def _get_lat_long(location):
 
 @dag(
     start_date=datetime(2025, 3, 1),
-    schedule="@daily",
+    schedule=[Asset("formatted_newsletter")],
     default_args={
         "retries": 2,
         "retry_delay": duration(minutes=3),
@@ -75,14 +75,18 @@ def personalize_newsletter():
             conn_id=OBJECT_STORAGE_CONN_ID,
         )  # C
 
+        print(f"Object Storage Path {object_storage_path}")
+
         user_info = []
         for file in object_storage_path.iterdir():
-            bytes = file.read_block(
-                offset=0, length=None
-            )  # D
-            user_info.append(json.loads(bytes))
+            if file.is_file():
+                bytes = file.read_block(
+                    offset=0, length=None
+                )  # E
+                user_info.append(json.loads(bytes))
 
-        return user_info  # E
+        return user_info  # F
+
 
     _get_user_info = get_user_info()  # F
 
