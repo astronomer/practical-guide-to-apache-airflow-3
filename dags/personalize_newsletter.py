@@ -63,7 +63,7 @@ def _get_lat_long(location):
     },
 )
 def personalize_newsletter():
-    @task(pool="pool-1")
+    @task
     def get_user_info() -> list[dict]:
         import json
 
@@ -90,7 +90,7 @@ def personalize_newsletter():
 
     _get_user_info = get_user_info()  # F
 
-    @task(max_active_tis_per_dag=1, retries=4)  # A
+    @task(max_active_tis_per_dag=1, retries=4, pool="pool-1")  # A
     def get_weather_info(user: dict) -> dict:  # B
         import requests
 
