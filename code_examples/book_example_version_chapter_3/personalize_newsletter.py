@@ -82,7 +82,7 @@ def personalize_newsletter():
     _get_user_info = get_user_info()  # F
 
     @task(max_active_tis_per_dag=1, retries=4)  # A
-    def get_weather_info(user: dict):  # B
+    def get_weather_info(user: dict) -> dict:  # B
         import requests
 
         lat, long = _get_lat_long(user["location"])  # C
@@ -96,91 +96,6 @@ def personalize_newsletter():
     _get_weather_info = get_weather_info.expand(
         user=_get_user_info
     )  # D
-
-    @task(max_active_tis_per_dag=16)
-    def create_personalized_quote(user, **context):
-        from openai import OpenAI
-
-        import os
-        import re
-
-        client = OpenAI(
-            api_key=os.getenv("OPENAI_API_KEY")
-        )
-        id = user["id"]
-        name = user["name"]
-        motivation = user["motivation"]
-        favorite_sci_fi_character = user[
-            "favorite_sci_fi_character"
-        ]
-
-        series = favorite_sci_fi_character.split(" (")[
-            1
-        ].replace(")", "")
-        date = context["execution_date"].strftime(
-            "%Y-%m-%d"
-        )
-
-        with open(
-            f"{_PATH_TO_NEWSLETTER_FOLDER}/{date}_newsletter.txt",
-            "r",
-        ) as f:
-            newsletter_content = f.read()
-
-        quotes = re.findall(
-            r'\d+\.\s+"([^"]+)"', newsletter_content
-        )
-
-        system_prompt = (
-            f"You are {favorite_sci_fi_character} giving advice to your best friend {name}. "
-            f"{name} once said '{motivation}' and today they are especially in need of some encouragement. "
-            f"Please write a personalized quote for them based on the historic quotes provided, include "
-            f"an insider reference to {series} that only someone who has seen it would understand. "
-            "Do NOT include the series name in the quote. Do NOT verbatim repeat any of the provided quotes. "
-            "The quote should be between 200 and 500 characters long."
-        )
-        user_prompt = (
-            "The quotes to modify are:\n"
-            + "\n".join(quotes)
-        )
-
-        completion = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_prompt,
-                },
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                },
-            ],
-        )
-
-        # Extract the generated response from the API
-        generated_response = completion.choices[
-            0
-        ].message.content
-
-        # get the current context and define the custom map index variable
-        from airflow.operators.python import (
-            get_current_context,
-        )
-
-        context = get_current_context()
-
-        context["my_custom_map_index"] = (
-            f"Personalized Quote for: {user['name']} (id: {user['id']}) in {user['location']}"
-        )
-
-        return generated_response
-
-    _create_personalized_quote = (
-        create_personalized_quote.expand(
-            user=_get_user_info
-        )
-    )
 
     @task(outlets=[Asset("personalized_newsletters")])
     def create_personalized_newsletter(
@@ -244,9 +159,7 @@ def personalize_newsletter():
         )
 
     create_personalized_newsletter.expand(
-        personalized_info=_get_weather_info.zip(
-            _create_personalized_quote
-        )
+        user=_get_weather_info
     )
 
 

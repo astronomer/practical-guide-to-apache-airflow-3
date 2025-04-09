@@ -1,8 +1,8 @@
 import os
 
-from airflow.sdk import Asset, dag
 from airflow.decorators import task
-from pendulum import datetime
+from airflow.sdk import Asset, dag
+from pendulum import datetime, duration
 
 _WEATHER_URL = (
     "https://api.open-meteo.com/v1/forecast?"
@@ -26,6 +26,15 @@ OBJECT_STORAGE_PATH_USER_INFO = os.getenv(
     default="include/user_data",
 )  # A
 
+SYSTEM_PROMPT = (
+    "You are {favorite_sci_fi_character} giving advice to your best friend {name}. "
+    "{name} once said '{motivation}' and today they are especially in need of some encouragement. "
+    "Please write a personalized quote for them based on the historic quotes provided, include "
+    "an insider reference to {series} that only someone who has seen it would understand. "
+    "Do NOT include the series name in the quote. Do NOT verbatim repeat any of the provided quotes. "
+    "The quote should be between 200 and 500 characters long."
+)
+
 
 def _get_lat_long(location):
     import time
@@ -45,14 +54,13 @@ def _get_lat_long(location):
     )
 
 
-
 @dag(
     start_date=datetime(2025, 3, 1),
     schedule="@daily",
     default_args={
         "retries": 2,
         "retry_delay": duration(minutes=3),
-    }, 
+    },
 )
 def personalize_newsletter():
     @task
@@ -79,7 +87,7 @@ def personalize_newsletter():
     _get_user_info = get_user_info()  # F
 
     @task(max_active_tis_per_dag=1, retries=4)  # A
-    def get_weather_info(user: dict):  # B
+    def get_weather_info(user: dict) -> dict:  # B
         import requests
 
         lat, long = _get_lat_long(user["location"])  # C
@@ -88,33 +96,39 @@ def personalize_newsletter():
         )
         user["weather"] = r.json()
 
-        return user  
+        return user
 
     _get_weather_info = get_weather_info.expand(
         user=_get_user_info
-    )  
+    )
 
-    @task(max_active_tis_per_dag=16)
-    def create_personalized_quote(user, **context):
-        from openai import OpenAI
-        from airflow.io.path import ObjectStoragePath
-
-        import os
+    @task(max_active_tis_per_dag=16)  # A
+    def create_personalized_quote(
+        system_prompt,
+        user,
+        **context,  # B
+    ):
         import re
 
-        client = OpenAI(
-            api_key=os.getenv("OPENAI_API_KEY")
+        from airflow.io.path import ObjectStoragePath
+        from airflow.providers.openai.hooks.openai import (
+            OpenAIHook,
         )
+
+        my_openai_hook = OpenAIHook(
+            conn_id="my_openai_conn"
+        )  # C
+        client = my_openai_hook.get_conn()  # D
+
         id = user["id"]
         name = user["name"]
         motivation = user["motivation"]
         favorite_sci_fi_character = user[
             "favorite_sci_fi_character"
-        ]
-
+        ]  # E
         series = favorite_sci_fi_character.split(" (")[
             1
-        ].replace(")", "")
+        ].replace(")", "")  # F
         date = context["dag_run"].run_after.strftime(
             "%Y-%m-%d"
         )
@@ -122,7 +136,7 @@ def personalize_newsletter():
         object_storage_path = ObjectStoragePath(
             f"{OBJECT_STORAGE_SYSTEM}://{OBJECT_STORAGE_PATH_NEWSLETTER}",
             conn_id=OBJECT_STORAGE_CONN_ID,
-        )
+        )  # G
 
         date_newsletter_path = (
             object_storage_path
@@ -135,20 +149,18 @@ def personalize_newsletter():
 
         quotes = re.findall(
             r'\d+\.\s+"([^"]+)"', newsletter_content
-        )
+        )  # H
 
-        system_prompt = (
-            f"You are {favorite_sci_fi_character} giving advice to your best friend {name}. "
-            f"{name} once said '{motivation}' and today they are especially in need of some encouragement. "
-            f"Please write a personalized quote for them based on the historic quotes provided, include "
-            f"an insider reference to {series} that only someone who has seen it would understand. "
-            "Do NOT include the series name in the quote. Do NOT verbatim repeat any of the provided quotes. "
-            "The quote should be between 200 and 500 characters long."
-        )
+        system_prompt = system_prompt.format(
+            favorite_sci_fi_character=favorite_sci_fi_character,
+            motivation=motivation,
+            name=name,
+            series=series,
+        )  # I
         user_prompt = (
             "The quotes to modify are:\n"
             + "\n".join(quotes)
-        )
+        )  # J
 
         completion = client.chat.completions.create(
             model="gpt-4o",
@@ -162,11 +174,11 @@ def personalize_newsletter():
                     "content": user_prompt,
                 },
             ],
-        )
+        )  # K
 
         generated_response = completion.choices[
             0
-        ].message.content
+        ].message.content  # L
 
         return {
             "user_id": id,
@@ -174,9 +186,9 @@ def personalize_newsletter():
         }
 
     _create_personalized_quote = (
-        create_personalized_quote.expand(
-            user=_get_user_info
-        )
+        create_personalized_quote.partial(
+            system_prompt=SYSTEM_PROMPT
+        ).expand(user=_get_user_info)
     )
 
     @task
@@ -200,13 +212,14 @@ def personalize_newsletter():
         personalized_quotes=_create_personalized_quote,
     )
 
-    @task(outlets=[Asset("personalized_newsletters")])
+    @task
     def create_personalized_newsletter(
         user: list[dict],
         **context: dict,
     ) -> None:
-        from airflow.io.path import ObjectStoragePath
         import textwrap
+
+        from airflow.io.path import ObjectStoragePath
 
         date = context["dag_run"].run_after.strftime(
             "%Y-%m-%d"

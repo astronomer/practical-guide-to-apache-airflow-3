@@ -1,1 +1,1 @@
-FROM air.astronomer.io/runtime-dev:3.0-1-nightly202503310001
+FROM air.astronomer.io/runtime-dev:3.0-1-nightly202504040001
