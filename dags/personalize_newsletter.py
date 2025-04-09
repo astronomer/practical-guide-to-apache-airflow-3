@@ -63,7 +63,7 @@ def _get_lat_long(location):
     },
 )
 def personalize_newsletter():
-    @task
+    @task(pool="pool-1")
     def get_user_info() -> list[dict]:
         import json
 
