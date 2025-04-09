@@ -1,4 +1,4 @@
-from airflow.sdk import asset  # A
+from airflow.sdk import asset 
 
 
 @asset(schedule="@daily")  # B
