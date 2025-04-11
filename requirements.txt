@@ -5,3 +5,4 @@ apache-airflow-providers-amazon[s3fs]==9.5.0rc2
 geopy==2.4.1
 apache-airflow-providers-openai==1.4.0
 # ToDo: Add git provider once released
+chardet

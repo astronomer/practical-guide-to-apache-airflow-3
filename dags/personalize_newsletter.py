@@ -11,12 +11,8 @@ _WEATHER_URL = (
     "apparent_temperature"
 )
 
-OBJECT_STORAGE_SYSTEM = os.getenv(
-    "OBJECT_STORAGE_SYSTEM", default="file"
-)
-OBJECT_STORAGE_CONN_ID = os.getenv(
-    "OBJECT_STORAGE_CONN_ID", default=None
-)
+OBJECT_STORAGE_SYSTEM = os.getenv("OBJECT_STORAGE_SYSTEM", default="file")
+OBJECT_STORAGE_CONN_ID = os.getenv("OBJECT_STORAGE_CONN_ID", default=None)
 OBJECT_STORAGE_PATH_NEWSLETTER = os.getenv(
     "OBJECT_STORAGE_PATH_NEWSLETTER",
     default="include/newsletter",
@@ -27,11 +23,16 @@ OBJECT_STORAGE_PATH_USER_INFO = os.getenv(
 )  # A
 
 SYSTEM_PROMPT = (
-    "You are {favorite_sci_fi_character} giving advice to your best friend {name}. "
-    "{name} once said '{motivation}' and today they are especially in need of some encouragement. "
-    "Please write a personalized quote for them based on the historic quotes provided, include "
-    "an insider reference to {series} that only someone who has seen it would understand. "
-    "Do NOT include the series name in the quote. Do NOT verbatim repeat any of the provided quotes. "
+    "You are {favorite_sci_fi_character} "
+    "giving advice to your best friend {name}. "
+    "{name} once said '{motivation}' and today "
+    "they are especially in need of some encouragement. "
+    "Please write a personalized quote for them "
+    "based on the historic quotes provided, include "
+    "an insider reference to {series} that only someone "
+    "who has seen it would understand. "
+    "Do NOT include the series name in the quote. "
+    "Do NOT verbatim repeat any of the provided quotes. "
     "The quote should be between 200 and 500 characters long."
 )
 
@@ -42,9 +43,7 @@ def _get_lat_long(location):
     from geopy.geocoders import Nominatim
 
     time.sleep(2)
-    geolocator = Nominatim(
-        user_agent="my-newsletter-app-3"
-    )
+    geolocator = Nominatim(user_agent="my-newsletter-app-3")
 
     location = geolocator.geocode(location)
 
@@ -70,23 +69,19 @@ def personalize_newsletter():
         from airflow.io.path import ObjectStoragePath
 
         object_storage_path = ObjectStoragePath(
-            f"{OBJECT_STORAGE_SYSTEM}://"
-            f"{OBJECT_STORAGE_PATH_USER_INFO}",
+            f"{OBJECT_STORAGE_SYSTEM}://" f"{OBJECT_STORAGE_PATH_USER_INFO}",
             conn_id=OBJECT_STORAGE_CONN_ID,
         )  # C
 
-        print(f"Object Storage Path {object_storage_path}")
-
         user_info = []
         for file in object_storage_path.iterdir():
-            if file.is_file():
-                bytes = file.read_block(
-                    offset=0, length=None
-                )  # E
+            if file.is_file() and file.suffix == ".json":
+
+                bytes = file.read_block(offset=0, length=None)  # E
+
                 user_info.append(json.loads(bytes))
 
         return user_info  # F
-
 
     _get_user_info = get_user_info()  # F
 
@@ -95,16 +90,12 @@ def personalize_newsletter():
         import requests
 
         lat, long = _get_lat_long(user["location"])  # C
-        r = requests.get(
-            _WEATHER_URL.format(lat=lat, long=long)
-        )
+        r = requests.get(_WEATHER_URL.format(lat=lat, long=long))
         user["weather"] = r.json()
 
         return user
 
-    _get_weather_info = get_weather_info.expand(
-        user=_get_user_info
-    )
+    _get_weather_info = get_weather_info.expand(user=_get_user_info)
 
     @task(max_active_tis_per_dag=16)  # A
     def create_personalized_quote(
@@ -119,41 +110,26 @@ def personalize_newsletter():
             OpenAIHook,
         )
 
-        my_openai_hook = OpenAIHook(
-            conn_id="my_openai_conn"
-        )  # C
+        my_openai_hook = OpenAIHook(conn_id="my_openai_conn")  # C
         client = my_openai_hook.get_conn()  # D
 
         id = user["id"]
         name = user["name"]
         motivation = user["motivation"]
-        favorite_sci_fi_character = user[
-            "favorite_sci_fi_character"
-        ]  # E
-        series = favorite_sci_fi_character.split(" (")[
-            1
-        ].replace(")", "")  # F
-        date = context["dag_run"].run_after.strftime(
-            "%Y-%m-%d"
-        )
+        favorite_sci_fi_character = user["favorite_sci_fi_character"]  # E
+        series = favorite_sci_fi_character.split(" (")[1].replace(")", "")  # F
+        date = context["dag_run"].run_after.strftime("%Y-%m-%d")
 
         object_storage_path = ObjectStoragePath(
             f"{OBJECT_STORAGE_SYSTEM}://{OBJECT_STORAGE_PATH_NEWSLETTER}",
             conn_id=OBJECT_STORAGE_CONN_ID,
         )  # G
 
-        date_newsletter_path = (
-            object_storage_path
-            / f"{date}_newsletter.txt"
-        )
+        date_newsletter_path = object_storage_path / f"{date}_newsletter.txt"
 
-        newsletter_content = (
-            date_newsletter_path.read_text()
-        )
+        newsletter_content = date_newsletter_path.read_text()
 
-        quotes = re.findall(
-            r'\d+\.\s+"([^"]+)"', newsletter_content
-        )  # H
+        quotes = re.findall(r'\d+\.\s+"([^"]+)"', newsletter_content)  # H
 
         system_prompt = system_prompt.format(
             favorite_sci_fi_character=favorite_sci_fi_character,
@@ -161,10 +137,7 @@ def personalize_newsletter():
             name=name,
             series=series,
         )  # I
-        user_prompt = (
-            "The quotes to modify are:\n"
-            + "\n".join(quotes)
-        )  # J
+        user_prompt = "The quotes to modify are:\n" + "\n".join(quotes)  # J
 
         completion = client.chat.completions.create(
             model="gpt-4o",
@@ -180,34 +153,28 @@ def personalize_newsletter():
             ],
         )  # K
 
-        generated_response = completion.choices[
-            0
-        ].message.content  # L
+        generated_response = completion.choices[0].message.content  # L
 
         return {
             "user_id": id,
             "personalized_quote": generated_response,
         }
 
-    _create_personalized_quote = (
-        create_personalized_quote.partial(
-            system_prompt=SYSTEM_PROMPT
-        ).expand(user=_get_user_info)
-    )
+    _create_personalized_quote = create_personalized_quote.partial(
+        system_prompt=SYSTEM_PROMPT
+    ).expand(
+        user=_get_user_info
+    )  # M
 
     @task
     def combine_information(
         user_info: list[dict],
         personalized_quotes: list[dict],
     ) -> None:
-        user_info_dict = {
-            user["id"]: user for user in user_info
-        }
+        user_info_dict = {user["id"]: user for user in user_info}
         for quote in personalized_quotes:
             user_id = quote["user_id"]
-            user_info_dict[user_id][
-                "personalized_quote"
-            ] = quote["personalized_quote"]
+            user_info_dict[user_id]["personalized_quote"] = quote["personalized_quote"]
 
         return list(user_info_dict.values())
 
@@ -225,28 +192,16 @@ def personalize_newsletter():
 
         from airflow.io.path import ObjectStoragePath
 
-        date = context["dag_run"].run_after.strftime(
-            "%Y-%m-%d"
-        )
+        date = context["dag_run"].run_after.strftime("%Y-%m-%d")
 
         id = user["id"]
         name = user["name"]
         location = user["location"]
-        favorite_sci_fi_character = user[
-            "favorite_sci_fi_character"
-        ]
-        character_name = (
-            favorite_sci_fi_character.split(" (")[0]
-        )
-        actual_temp = user["weather"]["current"][
-            "temperature_2m"
-        ]
-        apparent_temp = user["weather"]["current"][
-            "apparent_temperature"
-        ]
-        rel_humidity = user["weather"]["current"][
-            "relative_humidity_2m"
-        ]
+        favorite_sci_fi_character = user["favorite_sci_fi_character"]
+        character_name = favorite_sci_fi_character.split(" (")[0]
+        actual_temp = user["weather"]["current"]["temperature_2m"]
+        apparent_temp = user["weather"]["current"]["apparent_temperature"]
+        rel_humidity = user["weather"]["current"]["relative_humidity_2m"]
         quote = user["personalized_quote"]
         wrapped_quote = textwrap.fill(quote, width=50)
 
@@ -258,19 +213,13 @@ def personalize_newsletter():
         )
 
         object_storage_path = ObjectStoragePath(
-            f"{OBJECT_STORAGE_SYSTEM}://"
-            f"{OBJECT_STORAGE_PATH_NEWSLETTER}",
+            f"{OBJECT_STORAGE_SYSTEM}://" f"{OBJECT_STORAGE_PATH_NEWSLETTER}",
             conn_id=OBJECT_STORAGE_CONN_ID,
         )
 
-        daily_newsletter_path = (
-            object_storage_path
-            / f"{date}_newsletter.txt"
-        )
+        daily_newsletter_path = object_storage_path / f"{date}_newsletter.txt"
 
-        generic_content = (
-            daily_newsletter_path.read_text()
-        )
+        generic_content = daily_newsletter_path.read_text()
 
         updated_content = generic_content.replace(
             "Hello Cosmic Traveler,", new_greeting
@@ -289,17 +238,12 @@ def personalize_newsletter():
         )
 
         personalized_newsletter_path = (
-            object_storage_path
-            / f"{date}_newsletter_userid_{id}.txt"
+            object_storage_path / f"{date}_newsletter_userid_{id}.txt"
         )
 
-        personalized_newsletter_path.write_text(
-            updated_content
-        )
+        personalized_newsletter_path.write_text(updated_content)
 
-    create_personalized_newsletter.expand(
-        user=_combine_information
-    )
+    create_personalized_newsletter.expand(user=_combine_information)
 
 
 personalize_newsletter()

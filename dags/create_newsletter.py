@@ -80,11 +80,6 @@ OBJECT_STORAGE_PATH_NEWSLETTER = os.getenv(
 
 
 @asset(
-    uri=(
-        f"{OBJECT_STORAGE_SYSTEM}://",
-        f"{OBJECT_STORAGE_PATH_NEWSLETTER}/",
-        "DATE_newsletter.txt",
-    ),  # C
     schedule=selected_quotes,
 )
 def formatted_newsletter(context: dict) -> None:  # D
