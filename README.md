@@ -6,7 +6,7 @@ Welcome! This repository contains all code listings and the example pipeline for
 
 It is also a functioning Ariflow project that you can try out locally with the [Astro CLI](https://www.astronomer.io/docs/astro/cli/install-cli)! This project creates a personalized inspirational newsletter for a user based on their name, location and favorite sci-fi character.
 
-![The example pipeline as shown in the book in chapter 4](/src/pipeline_diagram_chapter_4.png)
+![The example pipeline as shown in the book in chapter 4](/src/pipeline_diagram_chapter_4.png) 
 
 Project Contents
 ================
