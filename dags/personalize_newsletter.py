@@ -63,7 +63,7 @@ def _get_lat_long(location):
         return tuple(locations_data[location])
 
     time.sleep(10)
-    geolocator = Nominatim(user_agent="my-newsletter-app-5")
+    geolocator = Nominatim(user_agent="MyApp/1.0 (my_email@example.com)")
 
     location_object = geolocator.geocode(location)
 

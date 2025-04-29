@@ -22,6 +22,10 @@ OBJECT_STORAGE_PATH_USER_INFO = os.getenv(
     "OBJECT_STORAGE_PATH_USER_INFO",
     default="include/user_data",
 )
+OBJECT_STORAGE_LOCATIONS_FILE = os.getenv(
+    "OBJECT_STORAGE_LOCATIONS_FILE",
+    default="include/locations.json",
+)
 
 SYSTEM_PROMPT = (
     "You are {favorite_sci_fi_character} "
@@ -60,7 +64,7 @@ def _get_lat_long(location):
         return tuple(locations_data[location])
 
     time.sleep(10)
-    geolocator = Nominatim(user_agent="my-newsletter-app-5")
+    geolocator = Nominatim(user_agent="MyApp/1.0 (my_email@example.com)")
 
     location_object = geolocator.geocode(location)
 
