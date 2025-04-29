@@ -1,0 +1,6 @@
+Found issues in your airflow.cfg:
+    - `stalled_task_timeout` configuration parameter
+moved from the `celery` section to the `scheduler` section
+as `task_queued_timeout`.
+
+Please update your configuration file accordingly.

@@ -1,8 +1,14 @@
 # Astro Runtime includes the following pre-installed providers packages: https://www.astronomer.io/docs/astro/runtime-image-architecture#provider-packages
 numpy==2.2.2
-apache-airflow-providers-common-io==1.5.2
-apache-airflow-providers-amazon[s3fs]==9.5.0rc2
 geopy==2.4.1
+apache-airflow-providers-common-io==1.5.3
 apache-airflow-providers-openai==1.4.0
-# ToDo: Add git provider once released
-chardet
+
+# The git provider if you choose to use the GitDagBundle (chapter 4)
+apache-airflow-providers-git==0.0.2
+
+# The Amazon provider is only needed for switching the ObjectStoragePath location to S3 (chapter 6)
+apache-airflow-providers-amazon[s3fs]==9.6.0
+
+# The Common messaging provider is only needed if you chose to use event-driven scheduling (chapter 3/7)
+apache-airflow-providers-common-messaging==1.0.0

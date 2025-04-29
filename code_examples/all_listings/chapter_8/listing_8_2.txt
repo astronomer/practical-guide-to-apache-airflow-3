@@ -1,0 +1,14 @@
+23:19:42 my_directory % ruff check
+dags/my_dag.py:19:5: AIR301 [*] `fail_stop` is removed in Airflow 3.0
+   |
+16 |    doc_md=__doc__,
+17 |    default_args={"owner": "Astro", "retries": 3},
+18 |    fail_stop=True,
+   |    ^^^^^^^^^ AIR302
+19 | )
+20 | def my_dag():
+   |
+   = help: Use `fail_fast` instead
+   
+Found 1 error.
+[*] 1 fixable with the `--fix` option.

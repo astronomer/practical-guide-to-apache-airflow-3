@@ -1,0 +1,5 @@
+numpy==<version>
+apache-airflow-providers-common-io==<version>
+geopy==<version>
+apache-airflow-providers-openai==<version>
+apache-airflow-providers-amazon[s3fs]==<version>

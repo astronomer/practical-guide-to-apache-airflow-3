@@ -1,0 +1,6 @@
+CONTAINER   ID IMAGE                [...]   PORTS       NAMES
+f565...     [...]/airflow:latest    [...]   >8080/tcp   [...]-api-server-1
+77e6…       [...]/airflow:latest    [...]               [...]-dag-processor-1
+88dc...     [...]/airflow:latest    [...]               [...]-triggerer-1
+aa5a...     [...]/airflow:latest    [...]               [...]-scheduler-1
+5f0e...     postgres                [...]   >5432/tcp   [...]-postgres-1

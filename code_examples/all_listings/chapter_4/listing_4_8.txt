@@ -1,0 +1,17 @@
+AIRFLOW_CONN_GIT_DEFAULT='{
+    "conn_type": "git",
+    "host": "https://github.com/<account>/<repo>.git",
+    "password": "github_pat_<your-token>"
+}'
+
+AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+    {
+        "name": "your-bundle-name",
+        "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+        "kwargs": {
+            "git_conn_id": "git_default",
+            "subdir": "dags",
+            "tracking_ref": "main"
+        }
+    }
+]'

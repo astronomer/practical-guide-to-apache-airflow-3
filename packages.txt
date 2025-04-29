@@ -1,0 +1,2 @@
+# The git package is only needed to use a GitDagBundle (chapter 4)
+git

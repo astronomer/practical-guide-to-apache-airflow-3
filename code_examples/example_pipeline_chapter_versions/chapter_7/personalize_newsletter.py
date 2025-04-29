@@ -1,7 +1,8 @@
 import os
 
 from airflow.decorators import task
-from airflow.sdk import dag, Asset
+from airflow.sdk import dag, Asset, AssetWatcher
+from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 from pendulum import datetime, duration
 
 _WEATHER_URL = (
@@ -53,9 +54,25 @@ def _get_lat_long(location):
     )
 
 
+# Configure the SQS queue trigger
+
+SQS_QUEUE_URL = os.getenv(
+    "SQS_QUEUE_URL", default="https://sqs.region.amazonaws.com/account/queue"
+)
+
+trigger = MessageQueueTrigger(
+    queue=SQS_QUEUE_URL, aws_conn_id="aws_default", waiter_delay=10
+)
+sqs_asset = Asset(
+    "sqs_queue_asset", watchers=[AssetWatcher(name="sqs_watcher", trigger=trigger)]
+)
+
+
 @dag(
     start_date=datetime(2025, 3, 1),
-    schedule=[Asset("formatted_newsletter")],
+    schedule=(
+        Asset("formatted_newsletter") | sqs_asset
+    ),  # Create a conditional schedule to run the dag when one of the assets is updated
     default_args={
         "retries": 2,
         "retry_delay": duration(minutes=3),
@@ -64,27 +81,58 @@ def _get_lat_long(location):
 )
 def personalize_newsletter():
     @task
-    def get_user_info() -> list[dict]:
+    def get_user_info(
+        **context,
+    ) -> list[
+        dict
+    ]:  # This task is the only task that needs adaptation to work with the SQS queue trigger, the rest of the dag remains unchanged
         import json
 
-        from airflow.sdk import ObjectStoragePath
+        asset_event_name = None
 
-        object_storage_path = ObjectStoragePath(
-            f"{OBJECT_STORAGE_SYSTEM}://" f"{OBJECT_STORAGE_PATH_USER_INFO}",
-            conn_id=OBJECT_STORAGE_CONN_ID,
-        )
+        triggering_asset_events = context[
+            "triggering_asset_events"
+        ]  # fetch the triggering asset events
+        for asset_event in triggering_asset_events[sqs_asset]:
+            asset_event_name = (
+                asset_event.asset.name
+            )  # get the name of the triggering asset event
+            asset_extra = (
+                asset_event.extra
+            )  # get the extra information from the triggering asset event (when triggered via SQS this contains the message from the queue)
 
-        user_info = []
-        for file in object_storage_path.iterdir():
-            if file.is_file() and file.suffix == ".json":
-                bytes = file.read_block(offset=0, length=None)
-                user_info.append(json.loads(bytes))
+        if (
+            asset_event_name == "sqs_queue_asset"
+        ):  # if the dag was triggered using event-driven scheduling only one newsletter is created: for the user named in the message
+            print("Triggered by SQS queue asset...")
+            print("Processing the message from the SQS queue: ", asset_extra)
+            user_info = [
+                json.loads(asset_extra["payload"]["message_batch"][0]["Body"])
+            ]  # get the message from the SQS queue
+
+        else:  # if the dag ran based on updates to another datasets i.e. on its regular batch cadence, all subscribers are fetched
+            print("Triggered by formatted_newsletter asset...")
+            print("Creating newsletters for all subscribers...")
+            from airflow.sdk import ObjectStoragePath
+
+            object_storage_path = ObjectStoragePath(
+                f"{OBJECT_STORAGE_SYSTEM}://" f"{OBJECT_STORAGE_PATH_USER_INFO}",
+                conn_id=OBJECT_STORAGE_CONN_ID,
+            )
+
+            user_info = []
+            for file in object_storage_path.iterdir():
+                if file.is_file() and file.suffix == ".json":
+
+                    bytes = file.read_block(offset=0, length=None)
+
+                    user_info.append(json.loads(bytes))
 
         return user_info
 
     _get_user_info = get_user_info()
 
-    @task(max_active_tis_per_dag=1, retries=4)
+    @task(max_active_tis_per_dag=1, retries=4, pool="weather")
     def get_weather_info(user: dict) -> dict:
         import requests
 
@@ -129,6 +177,8 @@ def personalize_newsletter():
         newsletter_content = date_newsletter_path.read_text()
 
         quotes = re.findall(r'\d+\.\s+"([^"]+)"', newsletter_content)
+
+        print(quotes)
 
         system_prompt = system_prompt.format(
             favorite_sci_fi_character=favorite_sci_fi_character,

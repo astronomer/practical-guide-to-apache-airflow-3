@@ -1,1 +1,1 @@
-FROM astrocrpublic.azurecr.io/runtime-dev:3.0-1-nightly202504090002
+FROM astrocrpublic.azurecr.io/runtime:3.0-1
