@@ -1,7 +1,7 @@
 Companion Repository - Practical Guide to Apache Airflow® 3 
 ============================================================
 
-Welcome! This repository contains all code listings and the example pipeline for the Practical Guide to Apache Airflow® 3 book. 
+Welcome! This repository contains all code listings and the example pipeline for the [Practical Guide to Apache Airflow® 3 book](https://www.astronomer.io/ebooks/practical-guide-to-apache-airflow-3/). 
 
 
 It is also a functioning Ariflow project that you can try out locally with the [Astro CLI](https://www.astronomer.io/docs/astro/cli/install-cli)! This project creates a personalized inspirational newsletter for a user based on their name, location and favorite sci-fi character.
