@@ -26,7 +26,7 @@ def formatted_newsletter(context: dict) -> None:
         task_ids=["selected_quotes"],
         key="return_value",
         include_prior_dates=True,
-    )
+    )[0]  # [0] Added to account for a bugfix in version 3.0.1, see: https://github.com/apache/airflow/pull/49692
 
     newsletter_template_path = object_storage_path / "newsletter_template.txt"
     newsletter_template = newsletter_template_path.read_text()

@@ -1,7 +1,8 @@
 from airflow.sdk import asset
 
-@asset(schedule=[raw_zen_quotes])  
-def selected_quotes(context: dict) -> dict:  
+
+@asset(schedule=[raw_zen_quotes])
+def selected_quotes(context: dict) -> dict:
     """
     Transforms the extracted raw_zen_quotes.
     """
@@ -12,7 +13,7 @@ def selected_quotes(context: dict) -> dict:
         task_ids=["raw_zen_quotes"],
         key="return_value",
         include_prior_dates=True,
-    )
+    )[0]  # [0] Added to account for a bugfix in version 3.0.1, see: https://github.com/apache/airflow/pull/49692
     quotes_character_counts = [int(quote["c"]) for quote in raw_zen_quotes]
     median = np.median(quotes_character_counts)
     median_quote = min(
@@ -27,4 +28,3 @@ def selected_quotes(context: dict) -> dict:
         "short_q": short_quote,
         "long_q": long_quote,
     }
-
